@@ -1,0 +1,185 @@
+<html>
+<head>
+  <title>randomware</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: black;
+    }
+    pre {
+      color: lawngreen;
+      margin: auto;
+      font-size: 2vmin;
+    }
+    .center {
+      position: fixed;
+      width: auto;
+      top: 0;
+      left: 50%;
+      -webkit-transform: translateX(-50%);
+      -moz-transform: translateX(-50%);
+      -ms-transform: translateX(-50%);
+      -o-transform: translateX(-50%);
+      transform: translateX(-50%);
+    }
+    #static { width: 50em; }
+  </style>
+</head>
+<body>
+<pre id="plot" class="center"></pre>
+<pre id="static">
+ ______________________________________________________________________________
+/                                                                              \
+|                                                                              |
+|                                 _                                            |
+|             _ __ __ _ _ __   __| | ___  _ __ ___                             |
+|            | '__/ _` | '_ \ / _` |/ _ \| '_ ` _ \                            |
+|            | | | (_| | | | | (_| | (_) | | | | '   __ _ _ __ ___             |
+|            |_|  \__,_|_| |_|\__,_|\___/|,      , |/ _` | '__/ _ \            |
+|                                          ,_| |_| | (_| | | |  __/            |
+|                                         \___,__,_|\__,_|_|  \___|            |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                        ~~~                     ,~~\\                         |
+|                       /'L'\                     ^_^,                         |
+|                      // - \\                   `-.-                          |
+|                                                                              |
+|                chris@randomware.se      martin@randomware.se                 |
+|                  github: @icetan                                             |
+|                                                                              |
+\______________________________________________________________________________/
+</pre>
+</body>
+
+<script>
+// Adapted from https://en.wikipedia.org/wiki/Perlin_noise
+
+/* Function to linearly interpolate between a0 and a1
+ * Weight w should be in the range [0.0, 1.0]
+ */
+function lerp(a0, a1, w) {
+    return (1.0 - w)*a0 + w*a1;
+}
+
+// Computes the dot product of the distance and gradient vectors.
+function dotGridGradient(ix, iy, x, y) {
+
+    // Precomputed (or otherwise) gradient vectors at each grid node
+    //extern float gradient[IYMAX][IXMAX][2];
+
+    // Compute the distance vector
+    let dx = x - ix;
+    let dy = y - iy;
+
+    // Compute the dot-product
+    return (dx*gradient[iy][ix][0] + dy*gradient[iy][ix][1]);
+}
+
+// Compute Perlin noise at coordinates x, y
+function perlin(x, y) {
+
+    // Determine grid cell coordinates
+    let x0 = x | 0;
+    let x1 = x0 + 1;
+    let y0 = y | 0;
+    let y1 = y0 + 1;
+
+    // Determine interpolation weights
+    // Could also use higher order polynomial/s-curve here
+    let sx = x - x0;
+    let sy = y - y0;
+
+    // Interpolate between grid point gradients
+    let n0, n1, ix0, ix1, value;
+
+    n0 = dotGridGradient(x0, y0, x, y);
+    n1 = dotGridGradient(x1, y0, x, y);
+    ix0 = lerp(n0, n1, sx);
+
+    n0 = dotGridGradient(x0, y1, x, y);
+    n1 = dotGridGradient(x1, y1, x, y);
+    ix1 = lerp(n0, n1, sx);
+
+    value = lerp(ix0, ix1, sy);
+    return value;
+}
+
+function genVectors() {
+  gradient = new Array(IYMAX);
+  for (let y = 0; y < IYMAX; y++) {
+    let xvecs = new Array(IXMAX);
+    for (let x = 0;  x < IXMAX; x++) {
+      xvecs[x] = [ Math.random(), Math.random() ]
+    }
+    gradient[y] = xvecs;
+  }
+}
+
+function shiftVectors() {
+  let xvecs = new Array(IXMAX);
+  for (let x = 0;  x < IXMAX; x++) {
+    xvecs[x] = [ Math.random(), Math.random() ]
+  }
+  gradient.pop();
+  gradient.unshift(xvecs);
+}
+
+function plot() {
+  let ymax = (IYMAX-2) * YSCALE;
+  let xmax = (IXMAX-1) * XSCALE;
+  let result = [];
+  for (let y = YSCALE - ((climb * SPEED) % YSCALE); y < ymax; y++) {
+    let xrow = [];
+    for (let x = 0;  x < xmax; x++) {
+      let p = perlin(x / XSCALE, y / YSCALE) + 0.5;
+      let c = CHARS.charAt((p * CHARS.length + climb * CYCLE) % CHARS.length)
+      xrow.push(c)
+    }
+    result.push(xrow.join(""))
+  }
+  return result
+}
+
+function plotTo(from, to, tox, toy) {
+  for (let y = 0; y < from.length; y++) {
+    let frow = from[y];
+    let trow = to[y + toy];
+    to[y + toy] =
+      trow.substring(0, tox)
+      + frow
+      + trow.substring(frow.length + tox, trow.length);
+  }
+  return to;
+}
+
+const WIDTH = 180;
+const HEIGHT = 110;
+const XSCALE = 25;
+const YSCALE = 25;
+const IXMAX = Math.ceil(WIDTH / XSCALE) + 1;
+const IYMAX = Math.ceil(HEIGHT / YSCALE) + 2;
+const CHARS = "    `'\"*##0o.  .+o0@@0x+,   `'\"*##*\"'`    .oo.     .xXx.         .'\"\"'.                .oOX*x.   `'\"*##*\"'`    ";
+const CYCLE = 0.5;
+const SPEED = 0.2;
+const TIME = 100;
+let climb = 0;
+let gradient = []
+
+let staticEl = document.getElementById("static");
+let banner = staticEl.innerText.split("\n");
+let el = document.getElementById("plot");
+
+staticEl.style.display = "none";
+
+genVectors();
+
+setInterval(() => {
+  climb++;
+  if ((climb * SPEED) % YSCALE === 0) shiftVectors();
+  let noise = plot();
+  el.innerText = plotTo(banner, noise, noise[0].length / 2 - banner[1].length / 2, 10).join("\n");
+}, TIME)
+</script>
+</html>

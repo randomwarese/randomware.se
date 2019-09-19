@@ -72,7 +72,7 @@ function dotGridGradient(ix, iy, x, y) {
     let dy = y - iy;
 
     // Compute the dot-product
-    return (dx*gradient[iy][ix][0] + dy*gradient[iy][ix][1]);
+    return (dx*GRADIENT[iy][ix][0] + dy*GRADIENT[iy][ix][1]);
 }
 
 // Compute Perlin noise at coordinates x, y
@@ -105,13 +105,12 @@ function perlin(x, y) {
 }
 
 function genVectors() {
-  gradient = new Array(IYMAX);
   for (let y = 0; y < IYMAX; y++) {
     let xvecs = new Array(IXMAX);
     for (let x = 0;  x < IXMAX; x++) {
       xvecs[x] = [ Math.random(), Math.random() ]
     }
-    gradient[y] = xvecs;
+    GRADIENT[y] = xvecs;
   }
 }
 
@@ -120,24 +119,19 @@ function shiftVectors() {
   for (let x = 0; x < IXMAX; x++) {
     xvecs[x] = [ Math.random(), Math.random() ]
   }
-  gradient.pop();
-  gradient.unshift(xvecs);
+  GRADIENT.pop();
+  GRADIENT.unshift(xvecs);
 }
 
 function plot(timestamp, yoffset_) {
-  let ymax = (IYMAX-2) * YSCALE;
-  let xmax = (IXMAX-1) * XSCALE;
   let yoffset = YSCALE - yoffset_;
-  let result = [];
-  for (let y = 0; y < ymax; y++) {
-    let xrow = new Array(xmax);
-    for (let x = 0;  x < xmax; x++) {
+  for (let y = 0; y < YMAX; y++) {
+    for (let x = 0;  x < XMAX; x++) {
       let p = perlin(x / XSCALE, (y + yoffset) / YSCALE) + 1;
-      xrow[x] = CHARS.charAt((p * CHARS.length + timestamp * CYCLE) % CHARS.length);
+      PLOT_ROW[x] = CHARS.charAt((p * CHARS.length + timestamp * CYCLE) % CHARS.length);
     }
-    result.push(xrow.join(""));
+    PLOT[y] = PLOT_ROW.join("");
   }
-  return result
 }
 
 function plotTo(from, to, tox, toy) {
@@ -149,7 +143,6 @@ function plotTo(from, to, tox, toy) {
       + frow
       + trow.substring(frow.length + tox, trow.length);
   }
-  return to;
 }
 
 const WIDTH = 180;
@@ -158,18 +151,22 @@ const XSCALE = 25;
 const YSCALE = 25;
 const IXMAX = Math.ceil(WIDTH / XSCALE) + 1;
 const IYMAX = Math.ceil(HEIGHT / YSCALE) + 2;
-const CHARS = "    `'\"*##0o.  .+o0@@0x+,   `'\"*##*\"'`    .oo.     .xXx.         .'\"\"'.                .oOX*x.      randomware       `'\"*##*\"'`        ";
+const YMAX = (IYMAX-2) * YSCALE;
+const XMAX = (IXMAX-1) * XSCALE;
+const PLOT = new Array(YMAX);
+const PLOT_ROW = new Array(XMAX);
+const CHARS = "    `'\"*##0o.  .+o0@@0x+,   `'\"*##*\"'`    .oo.     .xXx.         .'\"\"'.             -+-      .oOX*x.      randomware       `'\"*##*\"'`        ";
 const FPS = 15;
 const CYCLE = 0.002;
 const SPEED = 0.004;
-let gradient = [];
+const GRADIENT = new Array(IYMAX);
 let yoffset = YSCALE;
 let lastoffset = null;
 let lastframe = null;
 
-let staticEl = document.getElementById("static");
-let banner = staticEl.innerText.split("\n");
-let el = document.getElementById("plot");
+const staticEl = document.getElementById("static");
+const banner = staticEl.innerText.split("\n");
+const el = document.getElementById("plot");
 
 staticEl.style.display = "none";
 
@@ -184,8 +181,9 @@ function draw(timestamp) {
       shiftVectors();
     }
     yoffset = (timestamp - lastoffset) * SPEED;
-    let noise = plot(timestamp, yoffset);
-    el.innerText = plotTo(banner, noise, noise[0].length / 2 - banner[1].length / 2, 10).join("\n");
+    plot(timestamp, yoffset);
+    plotTo(banner, PLOT, XMAX / 2 - banner[1].length / 2, 10)
+    el.innerText = PLOT.join("\n");
   }
 }
 requestAnimationFrame(draw);

@@ -9,8 +9,7 @@
     }
     pre {
       color: lawngreen;
-      margin: auto;
-      font-size: 2vmin;
+      font-size: 1.8vmin;
     }
     .center {
       position: fixed;
@@ -23,12 +22,11 @@
       -o-transform: translateX(-50%);
       transform: translateX(-50%);
     }
-    #static { width: 50em; }
   </style>
 </head>
 <body>
 <pre id="plot" class="center"></pre>
-<pre id="static">
+<pre id="static" class="center">
  ______________________________________________________________________________
 /                                                                              \
 |                                                                              |
@@ -119,25 +117,25 @@ function genVectors() {
 
 function shiftVectors() {
   let xvecs = new Array(IXMAX);
-  for (let x = 0;  x < IXMAX; x++) {
+  for (let x = 0; x < IXMAX; x++) {
     xvecs[x] = [ Math.random(), Math.random() ]
   }
   gradient.pop();
   gradient.unshift(xvecs);
 }
 
-function plot() {
+function plot(timestamp, yoffset_) {
   let ymax = (IYMAX-2) * YSCALE;
   let xmax = (IXMAX-1) * XSCALE;
+  let yoffset = YSCALE - yoffset_;
   let result = [];
-  for (let y = YSCALE - ((climb * SPEED) % YSCALE); y < ymax; y++) {
-    let xrow = [];
+  for (let y = 0; y < ymax; y++) {
+    let xrow = new Array(xmax);
     for (let x = 0;  x < xmax; x++) {
-      let p = perlin(x / XSCALE, y / YSCALE) + 0.5;
-      let c = CHARS.charAt((p * CHARS.length + climb * CYCLE) % CHARS.length)
-      xrow.push(c)
+      let p = perlin(x / XSCALE, (y + yoffset) / YSCALE) + 1;
+      xrow[x] = CHARS.charAt((p * CHARS.length + timestamp * CYCLE) % CHARS.length);
     }
-    result.push(xrow.join(""))
+    result.push(xrow.join(""));
   }
   return result
 }
@@ -160,12 +158,14 @@ const XSCALE = 25;
 const YSCALE = 25;
 const IXMAX = Math.ceil(WIDTH / XSCALE) + 1;
 const IYMAX = Math.ceil(HEIGHT / YSCALE) + 2;
-const CHARS = "    `'\"*##0o.  .+o0@@0x+,   `'\"*##*\"'`    .oo.     .xXx.         .'\"\"'.                .oOX*x.   `'\"*##*\"'`    ";
-const CYCLE = 0.5;
-const SPEED = 0.2;
-const TIME = 100;
-let climb = 0;
-let gradient = []
+const CHARS = "    `'\"*##0o.  .+o0@@0x+,   `'\"*##*\"'`    .oo.     .xXx.         .'\"\"'.                .oOX*x.      randomware       `'\"*##*\"'`        ";
+const FPS = 15;
+const CYCLE = 0.002;
+const SPEED = 0.004;
+let gradient = [];
+let yoffset = YSCALE;
+let lastoffset = null;
+let lastframe = null;
 
 let staticEl = document.getElementById("static");
 let banner = staticEl.innerText.split("\n");
@@ -175,11 +175,19 @@ staticEl.style.display = "none";
 
 genVectors();
 
-setInterval(() => {
-  climb++;
-  if ((climb * SPEED) % YSCALE === 0) shiftVectors();
-  let noise = plot();
-  el.innerText = plotTo(banner, noise, noise[0].length / 2 - banner[1].length / 2, 10).join("\n");
-}, TIME)
+function draw(timestamp) {
+  requestAnimationFrame(draw)
+  if (lastframe === null || timestamp - lastframe > 1000 / FPS) {
+    lastframe = timestamp;
+    if (lastoffset === null || yoffset >= YSCALE) {
+      lastoffset = timestamp - (yoffset - YSCALE) / SPEED;
+      shiftVectors();
+    }
+    yoffset = (timestamp - lastoffset) * SPEED;
+    let noise = plot(timestamp, yoffset);
+    el.innerText = plotTo(banner, noise, noise[0].length / 2 - banner[1].length / 2, 10).join("\n");
+  }
+}
+requestAnimationFrame(draw);
 </script>
 </html>
